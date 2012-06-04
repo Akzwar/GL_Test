@@ -5,14 +5,17 @@
 #include <GL/glu.h>
 #include <unistd.h>
 #include <math.h>
+#include "../../DPIntegrator/src/dpintegrator.h"
 //#include <vector>
-#include "../../Quat_Test/src/Quat.h"
 #define W 1280
 #define H 1050
 
 int window;
 
 GLfloat Cube[ 8 * 3 ];
+
+Model* kepl;
+DPIntegrator* Integr;
 
 void DrawGLScene()
 {
@@ -34,6 +37,10 @@ void DrawGLScene()
 		glVertex3f(0.0,0.0,1.0);
 	glEnd();
 	glDrawArrays(GL_POINTS,0,8);
+	glColor3f(1.0,1.0,1.0);
+	glBegin(GL_POINTS);
+		glVertex3f(Integr->PhaseVect()[V_X],Integr->PhaseVect()[V_Y],Integr->PhaseVect()[V_Z]);
+	glEnd();
     glutSwapBuffers(); 
 	
 }
@@ -136,14 +143,23 @@ void InitGL(int Width, int Height)
 	glPointSize(3.0);
 
 }
-
+int timer = 0;
 void onIdle(void)
 {
+	timer ++;
+	usleep(10*1000);
+	if(timer >= 5)
+	{
+		Integr->NextStep();
+		timer = 0;
+	}
 		glutPostRedisplay();
 } 
 
 int main(int argc, char **argv)
 {
+	kepl = new KeplerModel;
+	Integr = new DPIntegrator(kepl,0,100,10e-8);
 	Angle = 0.1;
 	rotVect = Quat(0,Vect(0,0,20.0));
 	Cube[23] = -1;
@@ -189,6 +205,7 @@ int main(int argc, char **argv)
 	InitGL(W, H);
 	printf("GL Init done...\n");
 	glutMainLoop();
-
+	delete Integr;
+	delete kepl;
 	return 0;
 }
