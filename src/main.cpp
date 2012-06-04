@@ -79,8 +79,8 @@ if( IsDrag )
 		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0));
 		rotVect = Q * rotVect * Qm1;
 		Angle = -(double)dY / k;
-		Q = Quat(cos(Angle),Vect(sin(Angle),0,0));
-		Qm1 = Quat(cos(Angle),Vect(-sin(Angle),0,0));
+		Q = Quat(cos(Angle),Vect(0,sin(Angle),0) % rotVect.V );
+		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0)% rotVect.V );
 		rotVect = Q * rotVect * Qm1;
 	//rotVect.V.print();
 	printf("%f\n",(double)Angle);
