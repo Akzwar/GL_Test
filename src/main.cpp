@@ -6,14 +6,16 @@
 #include <unistd.h>
 #include <math.h>
 #include "../../DPIntegrator/src/dpintegrator.h"
-//#include <vector>
+#include <vector>
 #define W 1280
 #define H 1050
 
+using namespace std;
+
 int window;
-
+int SphereDotsCount = 0;
 GLfloat Cube[ 8 * 3 ];
-
+vector<GLfloat> Sphere;
 Model* kepl;
 DPIntegrator* Integr;
 
@@ -36,7 +38,7 @@ void DrawGLScene()
 		glVertex3f(0.0,0.0,0.0);
 		glVertex3f(0.0,0.0,1.0);
 	glEnd();
-	glDrawArrays(GL_POINTS,0,8);
+	glDrawArrays(GL_POINTS,0,Sphere.size()-1);
 	glColor3f(1.0,1.0,1.0);
 	glBegin(GL_POINTS);
 		glVertex3f(Integr->PhaseVect()[V_X],Integr->PhaseVect()[V_Y],Integr->PhaseVect()[V_Z]);
@@ -71,19 +73,20 @@ void onMouseMove( int X, int Y )
 {
 if( IsDrag )
 {
-	int k = 900;
+	int kx = 900;
+	int ky = 1500;
 	int dX = X - prevX;
 	int dY = Y - prevY;
-		Angle = -(double)dX / k;
+		Angle = -(double)dX / kx;
 		Q = Quat(cos(Angle),Vect(0,sin(Angle),0));
 		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0));
 		rotVect = Q * rotVect * Qm1;
-		Angle = -(double)dY / k;
+		Angle = -(double)dY / ky;
 		Q = Quat(cos(Angle),Vect(0,sin(Angle),0) % rotVect.V );
 		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0)% rotVect.V );
 		rotVect = Q * rotVect * Qm1;
 	//rotVect.V.print();
-	printf("%f\n",(double)Angle);
+	//printf("%f\n",(double)Angle);
 	glLoadIdentity();
 	gluLookAt(rotVect.V[V_X], rotVect.V[V_Y], rotVect.V[V_Z], 0,0,0, 0,1,0);
 	prevX = X;
@@ -108,7 +111,7 @@ void ReSizeGLScene(int Width, int Height)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	//glOrtho (0, W, H, 0, -1.0f, 100.0f);
-	gluPerspective(70.0, W/H, 0.1, 100.0);
+	gluPerspective(70.0, W/H, 0.1, 1000.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(rotVect.V[V_X], rotVect.V[V_Y], rotVect.V[V_Z], 0,0,0, 0,1,0);
@@ -138,7 +141,8 @@ void InitGL(int Width, int Height)
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	ReSizeGLScene(Width, Height);
-	glVertexPointer(3,GL_FLOAT,0,&Cube);
+	//glVertexPointer(3,GL_FLOAT,0,&Cube);
+	glVertexPointer(3,GL_FLOAT,0,&Sphere[0]);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glPointSize(3.0);
 
@@ -186,6 +190,15 @@ int main(int argc, char **argv)
 	Cube[2] = -1;
 	Cube[1] = 1;
 	Cube[0] = 1;
+	GLfloat R = 10.0;
+	for( float alpha = 0; alpha < 2*M_PI; alpha += M_PI/16 )
+		for( float beta = 0; beta < M_PI; beta += M_PI/16 )
+		{
+			//intf("%f\n",(i*R*10+i*10)*3);
+			Sphere.push_back(R * sin(beta) * sin(alpha));
+			Sphere.push_back(R * cos(beta));
+			Sphere.push_back(R * sin(beta) * cos(alpha));			
+		}
 	printf("GL inititialization start...\n");
 
 	glutInit(&argc, argv);
