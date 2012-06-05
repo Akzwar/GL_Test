@@ -21,9 +21,8 @@ Vect PV;
 bool ViewOnEarth;
 struct Gnomon
 {
-	long double X,Y;
 	Vect V;
-	float l(){return sqrt(V[V_X]*V[V_X]+V[V_Y]*V[V_Y]+V[V_Z]*V[V_Z]);}
+	float l;
 };
 class Globe
 {
@@ -32,9 +31,13 @@ class Globe
 	int SphereDotsCount;
 	vector<float> Sphere;
  public:
+	Gnomon IG,G;
 	Globe(){}
-	Globe(float R)
+	Globe(float R, float _l, float _alpha, float _beta)
 	{
+		G.V = Vect(R*sin(_beta)*sin(_alpha),R*cos(_beta),R*sin(_beta)*cos(_alpha));
+		G.l = _l;
+		IG  = G;
 		SphereDotsCount = 0;
 		for( float alpha = 0; alpha <= 2*M_PI; alpha += M_PI/16 )
 			for( float beta = 0; beta <= M_PI; beta += M_PI/16 )
@@ -49,7 +52,10 @@ class Globe
 	}
 	void Offset(float X, float Y, float Z)
 	{
-		Sphere.clear();	
+		Sphere.clear();
+		G.V[V_X] = IG.V[V_X] + X;
+		G.V[V_Y] = IG.V[V_Y] + Y;
+		G.V[V_Z] = IG.V[V_Z] + Z; 
 		for( int i = 0; i < SphereDotsCount*3; i+=3 )
 		{		
 			Sphere.push_back( InitSphere[i] + X );
@@ -62,11 +68,14 @@ class Globe
 		Quat res,q,qm1,tmp;	
 		long double angle;
 		angle = t*24*60*60*7.292115*10e-5;
+		q = Quat(cos(angle),Vect(0,sin(angle),0));
+		qm1 = Quat(cos(angle), Vect(0,-sin(angle),0));
+		tmp = Quat(0,Vect(IG.V));
+		res = q * tmp * qm1; 
+		IG.V = res.V;
 		for( int i = 0; i < SphereDotsCount*3; i+=3 )
 		{
 			tmp = Quat(0,Vect(InitSphere[i],InitSphere[i+1],InitSphere[i+2]));
-			q = Quat(cos(angle),Vect(0,sin(angle),0));
-			qm1 = Quat(cos(angle), Vect(0,-sin(angle),0));
 			res = q * tmp * qm1;
 			InitSphere[i] = res.V[V_X];
 			InitSphere[i+1] = res.V[V_Y];
@@ -122,8 +131,11 @@ void DrawGLScene()
 	glDrawArrays(GL_POINTS,0,Sun.Count());
 	//glPopMatrix();
 	glColor3f(1.0,1.0,1.0);
+	
 	glBegin(GL_POINTS);
 		glVertex3f(Integr->PhaseVect()[V_Y],Integr->PhaseVect()[V_Z],Integr->PhaseVect()[V_X]);
+		glColor3f(1.0,0.0,0.0);
+		glVertex3f(Earth.G.V[V_X],Earth.G.V[V_Y],Earth.G.V[V_Z]);
 	glEnd();
     glutSwapBuffers(); 
 	
@@ -281,8 +293,8 @@ int main(int argc, char **argv)
 	Qm1 = Quat(cos(Angle),Vect(0,0,-sin(Angle)));
 	ViewVect = Q * ViewVect * Qm1;
 	printf("GL inititialization start...\n");
-	Earth = Globe(0.01);//(6378.137/149597870.66);
-	Sun = Globe(695500.0/6378.137*0.01);
+	Earth = Globe(0.01,10,M_PI/2,M_PI/2);//(6378.137/149597870.66);
+	Sun = Globe(695500.0/6378.137*0.01,0,0,0);
 	glutInit(&argc, argv);
 	PV = Vect(6);	
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH);
