@@ -17,8 +17,9 @@ GLfloat Cube[ 8 * 3 ];
 Model* kepl;
 DPIntegrator* Integr;
 Quat rotVect,Q,Qm1,ViewVect;
-Vect PV;
+Vect PV,SunVect;
 bool ViewOnEarth;
+GLuint texture[1];
 struct Gnomon
 {
 	Vect V;
@@ -39,13 +40,16 @@ class Globe
 		G.l = _l;
 		IG  = G;
 		SphereDotsCount = 0;
-		for( float alpha = 0; alpha <= 2*M_PI; alpha += M_PI/16 )
-			for( float beta = 0; beta <= M_PI; beta += M_PI/16 )
+		for( float alpha = 0; alpha <= M_PI; alpha += M_PI/16 )
+			for( float beta = 0-0.0001; beta <=2* M_PI; beta += M_PI/16 )
 			{
 				Sphere.push_back(R * sin(beta) * sin(alpha));
 				Sphere.push_back(R * cos(beta));
-				Sphere.push_back(R * sin(beta) * cos(alpha));			
-				SphereDotsCount ++;
+				Sphere.push_back(R * sin(beta) * cos(alpha));
+				Sphere.push_back(R * sin(beta + M_PI/16) * sin(alpha + M_PI/16));
+				Sphere.push_back(R * cos(beta + M_PI/16));
+				Sphere.push_back(R * sin(beta + M_PI/16) * cos(alpha + M_PI/16));	
+				SphereDotsCount +=2;
 			}
 		InitSphere = Sphere;
 		//printf("%d\n",SphereDotsCount);
@@ -67,7 +71,7 @@ class Globe
 	{
 		Quat res,q,qm1,tmp;	
 		long double angle;
-		angle = t*24*60*60*7.292115*10e-5;
+		angle =  t * 24.0 * 60.0 * 60.0 * 7.292115*10e-6 / 2 ;
 		q = Quat(cos(angle),Vect(0,sin(angle),0));
 		qm1 = Quat(cos(angle), Vect(0,-sin(angle),0));
 		tmp = Quat(0,Vect(IG.V));
@@ -103,33 +107,17 @@ void ReinitCamera()
 void DrawGLScene()
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-   /* 
-	glColor3f(1.0,0.0,0.0);
-	glBegin(GL_LINES);
-		glVertex3f(0.0,0.0,0.0);
-		glVertex3f(0.0,10.0,0.0);		
-	glEnd();
-	glColor3f(0.0,1.0,0.0);
-	glBegin(GL_LINES);
-		glVertex3f(0.0,0.0,0.0);
-		glVertex3f(10.0,0.0,0.0);
-	glEnd();
-	glColor3f(0.0,0.0,1.0);
-	glBegin(GL_LINES);
-		glVertex3f(0.0,0.0,0.0);
-		glVertex3f(0.0,0.0,10.0);
-	glEnd();
-*/
-	//glPushMatrix();
+	//glEnable(GL_TEXTURE_2D);
+	//glEnable(GL_TEXTURE_GEN_S);
+	//glEnable(GL_TEXTURE_GEN_T);
 	glLoadIdentity();
 	ReinitCamera();
 	glColor3f(0.0,0.0,1.0);
 	glVertexPointer(3,GL_FLOAT,0,Earth.ptr());
-	glDrawArrays(GL_POINTS,0,Earth.Count());
+	glDrawArrays(GL_TRIANGLE_STRIP,0,Earth.Count());
 	glColor3f(1.0,1.0,0.0);
 	glVertexPointer(3,GL_FLOAT,0,Sun.ptr());
-	glDrawArrays(GL_POINTS,0,Sun.Count());
-	//glPopMatrix();
+	glDrawArrays(GL_TRIANGLE_STRIP,0,Sun.Count());
 	glColor3f(1.0,1.0,1.0);
 	
 	glBegin(GL_POINTS);
@@ -137,6 +125,7 @@ void DrawGLScene()
 		glColor3f(1.0,0.0,0.0);
 		glVertex3f(Earth.G.V[V_X],Earth.G.V[V_Y],Earth.G.V[V_Z]);
 	glEnd();
+	glColor3f(1.0,0.0,0.0);
     glutSwapBuffers(); 
 	
 }
@@ -182,18 +171,18 @@ if( IsDrag_Left )
 	int ky = 15000;
 	int dX = X - prevX;
 	int dY = Y - prevY;
-		Angle = -(double)dX / kx;
+		Angle = -(double)dX / kx / 2;
 		Q = Quat(cos(Angle),Vect(0,sin(Angle),0));
 		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0));
 		rotVect = Q * rotVect * Qm1;
-		Angle = -(double)dY / ky;
+		Angle = -(double)dY / ky / 2;
 		Q = Quat(cos(Angle),Vect(0,sin(Angle),0) % rotVect.V );
 		Qm1 = Quat(cos(Angle),Vect(0,-sin(Angle),0)% rotVect.V );
 		rotVect = Q * rotVect * Qm1;
 	//rotVect.V.print();
 	//printf("%f\n",(double)Angle);
-	glLoadIdentity();
-	ReinitCamera();
+	//glLoadIdentity();
+	//ReinitCamera();
 	prevX = X;
 	prevY = Y;
 }
@@ -225,11 +214,11 @@ void keyPressed(unsigned char key, int x, int y)
 
 void ReSizeGLScene(int Width, int Height)
 {
-	glViewport(0,0,W,H);
+	glViewport(0,0,Width,Height);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	//glOrtho (0, W, H, 0, -1.0f, 100.0f);
-	gluPerspective(70.0, Width/Height, 0.01, 1000.0);
+	gluPerspective(70.0, Width/(float)Height, 0.01, 10000.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	ReinitCamera();
@@ -237,15 +226,25 @@ void ReSizeGLScene(int Width, int Height)
 
 void InitGL(int Width, int Height)
 {
+	AUX_RGBImageRec *texture;
+	texture = auxDIBImageLoad("earth_1.bmp");
+	
+    	glEnable(GL_TEXTURE_2D);
+	glGenTextures(1,&texture[0]);
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, texture->sizeX, texture->sizeY,0,GL_RGB,GL_UNSIGNED_BYTE,texture->data);
+	delete texture;	
+	glEnable(GL_AUTO_NORMAL);
 	glClearColor( 0,0,0.07,0 );
 	//glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	//glClearDepth(1.0);
 	glDepthFunc(GL_LESS);
     	//glDepthMask(GL_FALSE);
-	//glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	//glDisable(GL_BLEND);
     	//glDisable(GL_ALPHA_TEST);
-    	//glEnable(GL_TEXTURE_2D);
 	//glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//glShadeModel(GL_FLAT);
 
@@ -268,16 +267,27 @@ int timer = 0;
 void onIdle(void)
 {
 	timer ++;
+	if(Integr->getT()<Integr->getTk())
+{
 	usleep(10*1000);
 	if(timer >= 5)
 	{
 		Integr->NextStep();
 		timer = 0;
-		printf("%f\n",(double)Integr->getStep());
-		PV = Integr->PhaseVect()*(149597870.66/6378.137*0.01);
+		PV = Integr->PhaseVect()*(149597870.66*10e-6);
 		Earth.Offset(PV[V_Y],PV[V_Z],PV[V_X]);
 		Earth.Rotate(Integr->getStep());
-	}
+	}	
+}
+	Vect GVect = Earth.IG.V * (1 / Earth.IG.V.Length()) * ( Earth.IG.l * 10e-6 + Earth.IG.V.Length() );
+//	Earth.IG.V.print();
+	SunVect = PV + GVect;
+	GVect = GVect * (1 / GVect.Length()) *( Earth.IG.l * 10e-6 * (-1));
+	long double an =acos( GVect * SunVect / (GVect.Length() * SunVect.Length()));
+	long double shadow = cos( M_PI/2 - an ) * GVect.Length()/cos(an);
+	//printf("%f\n",(double)an);
+	if(an > M_PI/2 && an<M_PI)
+	printf("sun=%f,gnomon=%f,shadow=%f\n",(double)SunVect.Length(),(double)GVect.Length(),(double) shadow);
 	glutPostRedisplay();
 } 
 
@@ -285,7 +295,7 @@ int main(int argc, char **argv)
 {
 	
 	kepl = new KeplerModel;
-	Integr = new DPIntegrator(kepl,0,100,10e-20);
+	Integr = new DPIntegrator(kepl,0,365,10e-20);
 	rotVect = Quat(0,Vect(0,0,20.0));
 	ViewVect = Quat(0,Vect(0,1,0));
 	Angle = 12.5/180.0*M_PI;
@@ -293,16 +303,16 @@ int main(int argc, char **argv)
 	Qm1 = Quat(cos(Angle),Vect(0,0,-sin(Angle)));
 	ViewVect = Q * ViewVect * Qm1;
 	printf("GL inititialization start...\n");
-	Earth = Globe(0.01,10,M_PI/2,M_PI/2);//(6378.137/149597870.66);
-	Sun = Globe(695500.0/6378.137*0.01,0,0,0);
+	Earth = Globe(6378.137*10e-6,10,M_PI/2,M_PI/2);//(6378.137/149597870.66);
+	Sun = Globe(695500.0*10e-6,0,0,0);
 	glutInit(&argc, argv);
 	PV = Vect(6);	
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_ALPHA | GLUT_DEPTH);
 	glutInitWindowSize(W, H);
-	glutInitWindowPosition(0, 0);
+	glutInitWindowPosition(100, 100);
 
 	window = glutCreateWindow("OpenGLTutor");
-
+	int window2 = glutCreateWindow("Graphs");
 	glutDisplayFunc(&DrawGLScene);
 	glutIdleFunc(&onIdle);
 	glutReshapeFunc(&ReSizeGLScene);
